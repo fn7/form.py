@@ -1,0 +1,41 @@
+# coding: utf8
+
+import yaml
+from form import Form
+from selenium import webdriver
+from time import sleep
+
+url = 'http://localhost/form/'
+
+ff = webdriver.Firefox();
+ff.implicitly_wait(30)
+ff.get(url);
+
+f = Form(ff, '//form');
+
+f.fill({
+    "company_name": '株式会社 株式ー',
+    "company_kana": "カブシキガイシャカブシキー",
+    "section": "セクション",
+    "name": "テスト太郎",
+    "kana": "テストタロウ",
+    "zip1": "530",
+    "zip2": "0001",
+    "address": "大阪市某所",
+    "phone1": "090",
+    "phone2": "0200",
+    "phone3": "0300",
+    "email1": "fn7@mail.virtual",
+    "email2": "fn7@mail.virtual",
+    "homepage_url": "http://twitter.com/#!/fn7",
+    "item": "リップスティック",
+    "message": "問い合わせ"
+})
+
+f.click('//input[@type="image"]');
+
+
+sleep(5)
+ff.close();
+exit();
+
