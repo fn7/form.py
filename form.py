@@ -20,61 +20,49 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import sys, traceback
 from lxml import html
 from time import sleep
+import re
 
 class Input():
-    def __init__(self, form_element, name, input_list):
+    def __init__(self, form_element, name):
+        self.form_element = form_element
         self.name = name
-        self.input_value = ''
-        self.input_list = input_list
-        self.input_list_index = len(input_list) - 1
-
-
-    def next_value(self):
-        """
-        複数選択肢のためのメソッド
-        選択肢をローテートした値を取得できる。
-        ただし、後ろからw
-        """
-        if len(self.input_list) < 1:
-            print >> sys.stderr, "input_list is none"
-            return '';
-        self.input_value = self.input_list[self.input_list_index]
-        self.input_list_index = len(self.input_list) - 1 if self.input_list_index <= 0 else self.input_list_index - 1
-
-        if self.input_value != '':
-            return self.input_value
-        else:
-            return self.next_value();
 
     def input(self, value):
         """
         webdriver用の関数名と引数を返す
         getattr関数を用いて、関数名からメソッドを取得し実行するためのもの。
         """
-        return ['send_keys', self.xpath, value]
+        return [['send_keys', self.xpath, value]]
 
+class ChoiceInput(Input):
+    def __init__(self, form_element, name, input_list):
+        Input.__init__(self, form_element, name)
+        self.input_list = input_list
+
+    def choice(self, n):
+        return self.input_list[n]
+
+        
 class Form():
 
     class Textfield(Input):
-        input_list = ['a', 'b', '2']
         @staticmethod
         def xpath():
             return '//input[@type="text"]'
         def __init__(self, form_element, name):
             self.xpath = '//input[@type="text" and @name="%s"]' % name
-            Input.__init__(self, form_element, name, Form.Textfield.input_list)
+            Input.__init__(self, form_element, name)
 
     class Textarea(Input):
-        input_list = ['a', 'b', '2']
         @staticmethod
         def xpath():
             return '//textarea'
         def __init__(self, form_element, name):
             self.xpath = '//textarea[@name="%s"]' % name
-            Input.__init__(self, form_element, name, Form.Textarea.input_list)
+            Input.__init__(self, form_element, name)
 
 
-    class Radiobutton(Input):
+    class Radiobutton(ChoiceInput):
         @staticmethod
         def xpath():
             return '//input[@type="radio"]'
@@ -86,12 +74,12 @@ class Form():
                     input_list.append( elem.get('value') )
             if len(input_list) < 1:
                 raise Exception, "input_list is empty"
-            Input.__init__(self, form_element, name, input_list)
-
+            ChoiceInput.__init__(self, form_element, name, input_list)
+            
         def input(self, value):
-            return ['click', self.xpath % value, None]
+            return [['click', self.xpath % value, None]]
 
-    class Checkbox(Input):
+    class Checkbox(ChoiceInput):
         @staticmethod
         def xpath():
             return '//input[@type="checkbox"]'
@@ -103,13 +91,17 @@ class Form():
                     input_list.append( elem.get('value') )
             if len(input_list) < 1:
                 raise Exception, "input_list is empty"
-            Input.__init__(self, form_element, name, input_list)
+            ChoiceInput.__init__(self, form_element, name, input_list)
 
         def input(self, value):
-            return ['click', self.xpath % value, None]
+            v = value if isinstance(value, list) or isinstance(value, tuple) else [value]
+            r = []
+            for i in v:
+                r.append(['click', self.xpath % i, None])
+            return r
 
 
-    class Pulldown(Input):
+    class Pulldown(ChoiceInput):
         @staticmethod
         def xpath():
             return '//select'
@@ -121,10 +113,10 @@ class Form():
                     input_list.append( elem.get('value') )
             if len(input_list) < 1:
                 raise Exception, "input_list is empty: %s" % self.xpath
-            Input.__init__(self, form_element, name, input_list)
+            ChoiceInput.__init__(self, form_element, name, input_list)
 
         def input(self, value):
-            return ['click', self.xpath % value, None]
+            return [['click', self.xpath % value, None]]
 
 
     def __init__(self, browser, xpath):
@@ -143,7 +135,6 @@ class Form():
         self.inputs = {}
         for elem in self.elem.xpath(Form.Textfield.xpath()):
             name = elem.get('name')
-            print >> sys.stderr, name;
             if 0 < len(name):
                 self.inputs[name] = Form.Textfield(self.elem, name)
         for elem in self.elem.xpath(Form.Textarea.xpath()):
@@ -165,19 +156,21 @@ class Form():
 
     def fill(self, params):
         try:
-            for k in self.inputs.keys():
-                val = params[k] if params.has_key(k) else self.inputs[k].next_value()
+            print >> sys.stderr, yaml.dump(self.inputs.keys())
+            keys = sorted(self.inputs.keys())
+            for k in keys:
+                if not params.has_key(k):
+                    continue
+                val = params[k]
 
-                cmd = self.inputs[k].input(val)
-                print >> sys.stderr, "%s: %s" % (cmd[1], val)
-                exec_input = getattr(self.browser.find_element_by_xpath(cmd[1]), cmd[0])
-                if cmd[2]:
-                    exec_input(cmd[2])
-                else:
-                    exec_input()
-                sleep(0.05) # waitいれとかないとちゃんと入力してくれない
+                cmds = self.inputs[k].input(val)
+                for cmd in cmds:
+                    print >> sys.stderr, "%s: %s" % (cmd[1], val)
+                    exec_input = getattr(self.browser.find_element_by_xpath(cmd[1]), cmd[0])
+                    if cmd[2] or cmd[2] == 0 or cmd[2] == '':
+                        exec_input(cmd[2])
+                    else:
+                        exec_input()
+                    sleep(0.05) # waitいれとかないとちゃんと入力してくれない
         except Exception, e:
             traceback.print_exc()
-    
-    def click(self, xpath):
-        self.browser.find_element_by_xpath(xpath).click();
