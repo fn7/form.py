@@ -32,7 +32,7 @@ f.fill({
     "message": "問い合わせ"
 })
 
-f.click('//input[@type="image"]');
+ff.find_element_by_xpath('//input[@type="image"]').click();
 
 
 sleep(5)
