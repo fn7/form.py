@@ -21,6 +21,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 import sys, traceback
 from lxml import html
 from time import sleep
+
 import re
 
 class Input():
@@ -30,9 +31,9 @@ class Input():
 
     def input(self, value):
         """
-        webdriver用の関数名と引数を返す
-        getattr関数を用いて、関数名からメソッドを取得し実行するためのもの。
-        """
+webdriver用の関数名と引数を返す
+getattr関数を用いて、関数名からメソッドを取得し実行するためのもの。
+"""
         return [['send_keys', self.xpath, value]]
 
 class ChoiceInput(Input):
@@ -157,7 +158,6 @@ class Form():
 
     def fill(self, params):
         try:
-            print >> sys.stderr, yaml.dump(self.inputs.keys())
             keys = sorted(self.inputs.keys())
             for k in keys:
                 if not params.has_key(k):
